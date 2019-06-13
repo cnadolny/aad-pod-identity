@@ -19,7 +19,6 @@ require (
 	github.com/imdario/mergo v0.3.4 // indirect
 	github.com/json-iterator/go v0.0.0-20180315132816-ca39e5af3ece // indirect
 	github.com/kelseyhightower/envconfig v1.3.0
-	github.com/kubernetes/kubernetes v1.14.3 // indirect
 	github.com/modern-go/concurrent v0.0.0-20180306012644-bacd9c7ef1dd // indirect
 	github.com/modern-go/reflect2 v0.0.0-20180228065516-1df9eeb2bb81 // indirect
 	github.com/onsi/ginkgo v1.6.0

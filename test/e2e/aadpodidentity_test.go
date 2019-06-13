@@ -2,7 +2,7 @@ package aadpodidentity
 
 import (
 	"fmt"
-	// "math/rand"
+	"math/rand"
 	"os"
 	"os/exec"
 	"path"
@@ -116,7 +116,7 @@ var _ = Describe("Kubernetes cluster using aad-pod-identity", func() {
 		deleteAllIdentityValidator()
 	})
 
-	FIt("should pass the identity validating test", func() {
+	It("should pass the identity validating test", func() {
 		setUpIdentityAndDeployment(keyvaultIdentity, "")
 
 		ok, err := azureassignedidentity.WaitOnLengthMatched(1)
@@ -211,72 +211,69 @@ var _ = Describe("Kubernetes cluster using aad-pod-identity", func() {
 		node.Uncordon(nodeName)
 	})
 
-	// It("should remove the correct identities when adding AzureIdentity and AzureIdentityBinding in order and removing them in random order", func() {
-	// 	fmt.Println("Inside function")
-		
-	// 	testData := make([]struct {
-	// 		identityName          string
-	// 		identityClientID      string
-	// 		identityValidatorName string
-	// 		azureAssignedIdentity aadpodid.AzureAssignedIdentity
-	// 	}, 5)
+	It("should remove the correct identities when adding AzureIdentity and AzureIdentityBinding in order and removing them in random order", func() {
+		testData := make([]struct {
+			identityName          string
+			identityClientID      string
+			identityValidatorName string
+			azureAssignedIdentity aadpodid.AzureAssignedIdentity
+		}, 5)
 
-	// 	for i := 0; i < 5; i++ {
-	// 		identityName := fmt.Sprintf("%s-%d", keyvaultIdentity, i)
-	// 		identityValidatorName := fmt.Sprintf("identity-validator-%d", i)
-	// 		fmt.Println(identityName)
+		for i := 0; i < 5; i++ {
+			identityName := fmt.Sprintf("%s-%d", keyvaultIdentity, i)
+			identityValidatorName := fmt.Sprintf("identity-validator-%d", i)
 
-	// 		setUpIdentityAndDeployment(keyvaultIdentity, fmt.Sprintf("%d", i))
-	// 		time.Sleep(5 * time.Second)
+			setUpIdentityAndDeployment(keyvaultIdentity, fmt.Sprintf("%d", i))
+			time.Sleep(5 * time.Second)
 
-	// 		identityClientID, err := azure.GetIdentityClientID(cfg.ResourceGroup, identityName)
-	// 		Expect(err).NotTo(HaveOccurred())
-	// 		Expect(identityClientID).NotTo(Equal(""))
+			identityClientID, err := azure.GetIdentityClientID(cfg.ResourceGroup, identityName)
+			Expect(err).NotTo(HaveOccurred())
+			Expect(identityClientID).NotTo(Equal(""))
 
-	// 		azureAssignedIdentity, err := azureassignedidentity.GetByPrefix(identityValidatorName)
-	// 		Expect(err).NotTo(HaveOccurred())
+			azureAssignedIdentity, err := azureassignedidentity.GetByPrefix(identityValidatorName)
+			Expect(err).NotTo(HaveOccurred())
 
-	// 		validateAzureAssignedIdentity(azureAssignedIdentity, identityName)
+			validateAzureAssignedIdentity(azureAssignedIdentity, identityName)
 
-	// 		testData[i] = struct {
-	// 			identityName          string
-	// 			identityClientID      string
-	// 			identityValidatorName string
-	// 			azureAssignedIdentity aadpodid.AzureAssignedIdentity
-	// 		}{
-	// 			identityName,
-	// 			identityClientID,
-	// 			identityValidatorName,
-	// 			azureAssignedIdentity,
-	// 		}
-	// 	}
+			testData[i] = struct {
+				identityName          string
+				identityClientID      string
+				identityValidatorName string
+				azureAssignedIdentity aadpodid.AzureAssignedIdentity
+			}{
+				identityName,
+				identityClientID,
+				identityValidatorName,
+				azureAssignedIdentity,
+			}
+		}
 
-	// 	// Shuffle the test data
-	// 	for i := range testData {
-	// 		j := rand.Intn(len(testData))
-	// 		testData[i], testData[j] = testData[j], testData[i]
-	// 	}
+		// Shuffle the test data
+		for i := range testData {
+			j := rand.Intn(len(testData))
+			testData[i], testData[j] = testData[j], testData[i]
+		}
 
-	// 	// Delete i-th elements in test data and check if the identities beyond index i are still functioning
-	// 	for i, data := range testData {
-	// 		err := azureidentity.DeleteOnCluster(data.identityName, templateOutputPath)
-	// 		Expect(err).NotTo(HaveOccurred())
+		// Delete i-th elements in test data and check if the identities beyond index i are still functioning
+		for i, data := range testData {
+			err := azureidentity.DeleteOnCluster(data.identityName, templateOutputPath)
+			Expect(err).NotTo(HaveOccurred())
 
-	// 		ok, err := azureassignedidentity.WaitOnLengthMatched(5 - 1 - i)
-	// 		Expect(err).NotTo(HaveOccurred())
-	// 		Expect(ok).To(Equal(true))
+			ok, err := azureassignedidentity.WaitOnLengthMatched(5 - 1 - i)
+			Expect(err).NotTo(HaveOccurred())
+			Expect(ok).To(Equal(true))
 
-	// 		// Make sure that the identity validator cannot access to the resource group anymore
-	// 		_, err = validateUserAssignedIdentityOnPod(data.azureAssignedIdentity.Spec.Pod, data.identityClientID)
-	// 		Expect(err).To(HaveOccurred())
-	// 		waitForDeployDeletion(data.identityValidatorName)
+			// Make sure that the identity validator cannot access to the resource group anymore
+			_, err = validateUserAssignedIdentityOnPod(data.azureAssignedIdentity.Spec.Pod, data.identityClientID)
+			Expect(err).To(HaveOccurred())
+			waitForDeployDeletion(data.identityValidatorName)
 
-	// 		// Make sure that the existing identities are still functioning
-	// 		for j := i + 1; j < 5; j++ {
-	// 			validateAzureAssignedIdentity(testData[j].azureAssignedIdentity, testData[j].identityName)
-	// 		}
-	// 	}
-	// })
+			// Make sure that the existing identities are still functioning
+			for j := i + 1; j < 5; j++ {
+				validateAzureAssignedIdentity(testData[j].azureAssignedIdentity, testData[j].identityName)
+			}
+		}
+	})
 
 	// It("should re-schedule the identity validator and its identity to a new node after powering down and restarting the node containing them", func() {
 	// 	setUpIdentityAndDeployment(keyvaultIdentity, "")
@@ -590,7 +587,7 @@ func validateAzureAssignedIdentity(azureAssignedIdentity aadpodid.AzureAssignedI
 	Expect(azureAssignedIdentity.Spec.AzureBindingRef.ObjectMeta.Name).To(Equal(fmt.Sprintf("%s-binding", identityName)))
 	Expect(azureAssignedIdentity.Spec.AzureBindingRef.ObjectMeta.Namespace).To(Equal("default"))
 	Expect(azureAssignedIdentity.Spec.AzureBindingRef.Spec.AzureIdentity).To(Equal(identityName))
-	Expect(azureAssignedIdentity.Spec.AzureBindingRef.Spec.Selector[aadpodid.CRDLabelKey]).To(Equal(identityName))
+	Expect(azureAssignedIdentity.Spec.AzureBindingRef.Spec.Selector).To(Equal(identityName))
 
 	// Assert Azure Identity properties
 	Expect(azureAssignedIdentity.Spec.AzureIdentityRef.ObjectMeta.Name).To(Equal(identityName))
