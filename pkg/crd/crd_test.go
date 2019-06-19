@@ -4,7 +4,9 @@ import (
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/rest"
 
-	aadpodid "github.com/Azure/aad-pod-identity/pkg/apis/aadpodidentity/v1"
+	"fmt"
+
+	aadpodid "github.com/Azure/aad-pod-identity/pkg/apis/aadpodidentity/v2"
 	api "k8s.io/api/core/v1"
 )
 
@@ -53,7 +55,9 @@ func (c *TestCrdClient) CreateBinding(bindingName string, idName string, selecto
 		},
 		Spec: aadpodid.AzureIdentityBindingSpec{
 			AzureIdentity: idName,
-			Selector:      map[string]string{aadpodid.CRDLabelKey: selector},
+			Selector: v1.LabelSelector{
+				MatchLabels: map[string]string{aadpodid.CRDLabelKey: selector},
+			},
 		},
 	}
 	c.bindingMap[bindingName] = binding
@@ -86,10 +90,13 @@ func (c *TestCrdClient) ListIds() (res *[]aadpodid.AzureIdentity, err error) {
 }
 
 func (c *TestCrdClient) ListBindings() (res *[]aadpodid.AzureIdentityBinding, err error) {
+	fmt.Println("in ListBindingsTest")
 	bindingList := make([]aadpodid.AzureIdentityBinding, 0)
 	for _, v := range c.bindingMap {
 		bindingList = append(bindingList, *v)
+		fmt.Println(*v)
 	}
+
 	return &bindingList, nil
 }
 

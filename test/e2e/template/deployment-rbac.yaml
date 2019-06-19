@@ -10,7 +10,7 @@ metadata:
   name: azureassignedidentities.aadpodidentity.k8s.io
 spec:
   group: aadpodidentity.k8s.io
-  version: v1
+  version: v2
   names:
     kind: AzureAssignedIdentity
     plural: azureassignedidentities
@@ -22,7 +22,7 @@ metadata:
   name: azureidentitybindings.aadpodidentity.k8s.io
 spec:
   group: aadpodidentity.k8s.io
-  version: v1
+  version: v2
   names:
     kind: AzureIdentityBinding
     plural: azureidentitybindings
@@ -34,7 +34,7 @@ metadata:
   name: azureidentities.aadpodidentity.k8s.io
 spec:
   group: aadpodidentity.k8s.io
-  version: v1
+  version: v2
   names:
     kind: AzureIdentity
     singular: azureidentity
@@ -179,10 +179,21 @@ spec:
       - name: mic
         image: "{{.Registry}}/mic:{{.MICVersion}}"
         imagePullPolicy: Always
-        args:
-          {{if .MICArg}}- mic {{ end }}
-          - "--cloudconfig=/etc/kubernetes/azure.json"
-          - "--logtostderr"
+        env:
+          - name: CLOUD
+            value: 'AzurePublicCloud'
+          - name: TENANT_ID
+            value: '72f988bf-86f1-41af-91ab-2d7cd011db47'
+          - name: CLIENT_ID
+            value: '26c1b64d-eb48-4b75-9e1b-e92964f92414'
+          - name: CLIENT_SECRET
+            value: 'bcdd2fe4-e067-43ee-ac10-194d051298e5'
+          - name: SUBSCRIPTION_ID
+            value: 'b610de5c-fa1a-47fc-8e20-9d21889c2bac'
+          - name: RESOURCE_GROUP
+            value: 'aad-pod-id'
+          - name: VM_TYPE
+            value: 'standard'
         volumeMounts:
           - name: k8s-azure-file
             mountPath: /etc/kubernetes/azure.json

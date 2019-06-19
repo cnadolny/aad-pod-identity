@@ -3,7 +3,7 @@ kind: Deployment
 metadata:
   labels:
     app: demo
-    aadpodidbinding: demo
+    aadpodidbinding:  keyvault-identity-0
   name: demo
   namespace: default
 spec:
@@ -11,16 +11,16 @@ spec:
     metadata:
       labels:
         app: demo
-        aadpodidbinding: demo
+        aadpodidbinding:  keyvault-identity-0
     spec:
       containers:
       - name: demo
         image: "mcr.microsoft.com/k8s/aad-pod-identity/demo:1.2"
         imagePullPolicy: Always
         args:
-          - "--subscriptionid=SUBSCRIPTION_ID"
-          - "--clientid=CLIENT_ID"
-          - "--resourcegroup=RESOURCE_GROUP"
+          - "--subscriptionid=b610de5c-fa1a-47fc-8e20-9d21889c2bac"
+          - "--clientid=26c1b64d-eb48-4b75-9e1b-e92964f92414"
+          - "--resourcegroup=aad-pod-id"
           # TO SPECIFY NAME OF RESOURCE TO GRANT TOKEN ADD --aad-resourcename
           # this demo defaults aad-resourcename to https://management.azure.com/
           # e.g. - "--aad-resourcename=https://vault.azure.net"

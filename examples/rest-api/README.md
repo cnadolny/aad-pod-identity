@@ -57,7 +57,7 @@ kubectl label namespace/pir description=PodIdentityRestApi
 Let's customize [identity.yaml](identity.yaml):
 
 ```yaml
-apiVersion: "aadpodidentity.k8s.io/v1"
+apiVersion: "aadpodidentity.k8s.io/v2"
 kind: AzureIdentity
 metadata:
  name: client-principal
@@ -74,7 +74,7 @@ spec:
 We **do not need to customize** [binding.yaml](binding.yaml).
 
 ```yaml
-apiVersion: "aadpodidentity.k8s.io/v1"
+apiVersion: "aadpodidentity.k8s.io/v2"
 kind: AzureIdentityBinding
 metadata:
  name: client-principal-binding

@@ -2,11 +2,12 @@ package mic
 
 import (
 	"errors"
+	"fmt"
 	"reflect"
 	"testing"
 	"time"
 
-	aadpodid "github.com/Azure/aad-pod-identity/pkg/apis/aadpodidentity/v1"
+	aadpodid "github.com/Azure/aad-pod-identity/pkg/apis/aadpodidentity/v2"
 	"github.com/Azure/aad-pod-identity/pkg/config"
 
 	"github.com/golang/glog"
@@ -315,7 +316,9 @@ func (c *TestCrdClient) CreateBinding(bindingName string, idName string, selecto
 		},
 		Spec: aadpodid.AzureIdentityBindingSpec{
 			AzureIdentity: idName,
-			Selector:      map[string]string{aadpodid.CRDLabelKey: selector},
+			Selector: v1.LabelSelector{
+				MatchLabels: map[string]string{aadpodid.CRDLabelKey: selector},
+			},
 		},
 	}
 	c.bindingMap[bindingName] = binding
@@ -348,10 +351,16 @@ func (c *TestCrdClient) ListIds() (res *[]aadpodid.AzureIdentity, err error) {
 }
 
 func (c *TestCrdClient) ListBindings() (res *[]aadpodid.AzureIdentityBinding, err error) {
+	fmt.Println("in ListBindingsTest")
 	bindingList := make([]aadpodid.AzureIdentityBinding, 0)
 	for _, v := range c.bindingMap {
 		bindingList = append(bindingList, *v)
+		fmt.Println()
+		fmt.Print(v.Spec.Selector)
+		fmt.Println()
 	}
+
+	fmt.Println(bindingList)
 	return &bindingList, nil
 }
 
@@ -697,6 +706,8 @@ func TestAddDelMICClient(t *testing.T) {
 	crdClient.CreateBinding("testbinding3", "test-id3", "test-select3")
 	podClient.AddPod("test-pod3", "default", "test-node2", "test-select3")
 	podClient.GetPods()
+
+	crdClient.ListBindings()
 
 	eventCh <- aadpodid.PodCreated
 	go micClient.Sync(exit)

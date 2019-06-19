@@ -91,7 +91,7 @@ build: clean build-nmi build-mic build-demo build-identity-validator
 
 .PHONY: deepcopy-gen
 deepcopy-gen:
-	deepcopy-gen -i ./pkg/apis/aadpodidentity/v1/ -o ../../../ -O aadpodidentity_deepcopy_generated -p aadpodidentity
+	deepcopy-gen -i ./pkg/apis/aadpodidentity/v2/ -o ../../../ -O aadpodidentity_deepcopy_generated -p aadpodidentity
 
 .PHONY: image-nmi
 image-nmi:
@@ -109,7 +109,7 @@ image-demo:
 image-identity-validator:
 	docker build -t $(REGISTRY)/$(IDENTITY_VALIDATOR_IMAGE) --build-arg IDENTITY_VALIDATOR_VERSION="$(IDENTITY_VALIDATOR_VERSION)" --target=identityvalidator .
 
-.PHONY: imag
+.PHONY: image
 image:image-nmi image-mic image-demo image-identity-validator
 
 .PHONY: push-nmi
