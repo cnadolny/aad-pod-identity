@@ -1,28 +1,13 @@
-package v1
+package internal
 
 import (
 	api "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-type EventType int
-
-const (
-	PodCreated      EventType = 0
-	PodDeleted      EventType = 1
-	PodUpdated      EventType = 2
-	IdentityCreated EventType = 3
-	IdentityDeleted EventType = 4
-	IdentityUpdated EventType = 5
-	BindingCreated  EventType = 6
-	BindingDeleted  EventType = 7
-	BindingUpdated  EventType = 8
-	Exit            EventType = 9
-)
-
 const (
 	CRDGroup    = "aadpodidentity.k8s.io"
-	CRDVersion  = "v1"
+	CRDVersion  = "internal"
 	CRDLabelKey = "aadpodidbinding"
 
 	BehaviorKey = "aadpodidentity.k8s.io/Behavior"
@@ -155,7 +140,8 @@ const (
 type AzureIdentityBindingSpec struct {
 	metav1.ObjectMeta `json:"metadata,omitempty"`
 	AzureIdentity     string `json:"azureidentity"`
-	Selector          string `json:"selector"`
+	Selector			string `json:"selector"`
+	LabelSelector		metav1.LabelSelector `json:"labelselector"`
 	// Weight is used to figure out which of the matching identities would be selected.
 	Weight int `json:"weight"`
 }
