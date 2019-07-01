@@ -3,29 +3,26 @@ package mic
 import (
 	"fmt"
 	"sync"
-	"sync/atomic"
 	"time"
 
+	"github.com/Azure/aad-pod-identity/pkg/stats"
+	"github.com/Azure/aad-pod-identity/version"
+
 	aadpodid "github.com/Azure/aad-pod-identity/pkg/apis/aadpodidentity"
+
 	"github.com/Azure/aad-pod-identity/pkg/cloudprovider"
 	"github.com/Azure/aad-pod-identity/pkg/crd"
 	"github.com/Azure/aad-pod-identity/pkg/pod"
-	"github.com/Azure/aad-pod-identity/pkg/stats"
-	"github.com/Azure/aad-pod-identity/version"
 	"github.com/golang/glog"
-	corev1 "k8s.io/api/core/v1"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+
+	corev1 "k8s.io/api/core/v1"
 	"k8s.io/client-go/informers"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/kubernetes/scheme"
 	typedcorev1 "k8s.io/client-go/kubernetes/typed/core/v1"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/record"
-)
-
-const (
-	stopped = int32(0)
-	running = int32(1)
 )
 
 type NodeGetter interface {
@@ -43,8 +40,6 @@ type Client struct {
 	EventChannel  chan aadpodid.EventType
 	NodeClient    NodeGetter
 	IsNamespaced  bool
-
-	syncing int32 // protect against conucrrent sync's
 }
 
 type ClientInt interface {
@@ -121,43 +116,15 @@ func (c *Client) Start(exit <-chan struct{}) {
 	go c.Sync(exit)
 }
 
-func (c *Client) canSync() bool {
-	return atomic.CompareAndSwapInt32(&c.syncing, stopped, running)
-}
-
-func (c *Client) setStopped() {
-	atomic.StoreInt32(&c.syncing, stopped)
-}
-
 func (c *Client) Sync(exit <-chan struct{}) {
-	if !c.canSync() {
-		panic("concurrent syncs")
-	}
-	defer c.setStopped()
-
 	glog.Info("Sync thread started.")
-
-	var event aadpodid.EventType
-
-	for {
-		select {
-		case <-exit:
-			return
-		case event = <-c.EventChannel:
-		}
-
+	for event := range c.EventChannel {
 		stats.Init()
 		// This is the only place where the AzureAssignedIdentity creation is initiated.
 		begin := time.Now()
 		workDone := false
 		glog.V(6).Infof("Received event: %v", event)
-		// List all pods in all namespaces
 		systemTime := time.Now()
-		listPods, err := c.PodClient.GetPods()
-		if err != nil {
-			glog.Error(err)
-			continue
-		}
 		listBindings, err := c.CRDClient.ListBindings()
 		if err != nil {
 			continue
@@ -166,62 +133,57 @@ func (c *Client) Sync(exit <-chan struct{}) {
 		if err != nil {
 			continue
 		}
+		currentAssignedIDs, err := c.CRDClient.ListAssignedIDs()
+		if err != nil {
+			continue
+		}
+
+		if (aadpodid.CRDVersion == "v1") {
+			listBindings, currentAssignedIDs, listIDs = aadpodid.ConvertV1ToInternal(listBindings, currentAssignedIDs, listIDs);
+		}
+		
 		idMap, err := c.convertIDListToMap(*listIDs)
 		if err != nil {
 			glog.Error(err)
 			continue
 		}
-
-		currentAssignedIDs, err := c.CRDClient.ListAssignedIDs()
-		if err != nil {
-			continue
-		}
 		stats.Put(stats.System, time.Since(systemTime))
-
-		nodeRefs := make(map[string]bool)
 
 		var newAssignedIDs []aadpodid.AzureAssignedIdentity
 		beginNewListTime := time.Now()
-		//For each pod, check what bindings are matching. For each binding create volatile azure assigned identity.
+		//For each binding, check what pods match, and create volatile azure assigned identity.
 		//Compare this list with the current list of azure assigned identities.
 		//For any new assigned identities found in this volatile list, create assigned identity and assign user assigned msis.
 		//For any assigned ids not present the volatile list, proceed with the deletion.
-		for _, pod := range listPods {
-			//Node is not yet allocated. In that case skip the pod
-			if pod.Spec.NodeName == "" {
-				glog.V(2).Infof("Pod %s/%s has no assigned node yet. it will be ignored", pod.Name, pod.Namespace)
-				continue
-			}
-			crdPodLabelVal := pod.Labels[aadpodid.CRDLabelKey]
-			if crdPodLabelVal == "" {
-				//No binding mentioned in the label. Just continue to the next pod
-				glog.V(2).Infof("Pod %s/%s has correct %s label but with no value. it will be ignored", pod.Name, pod.Namespace, aadpodid.CRDLabelKey)
-				continue
-			}
-			//glog.Infof("Found label with our CRDKey %s for pod: %s", crdPodLabelVal, pod.Name)
-			var matchedBindings []aadpodid.AzureIdentityBinding
-			for _, allBinding := range *listBindings {
-				if allBinding.Spec.Selector == crdPodLabelVal {
-					glog.V(5).Infof("Found binding match for pod %s/%s with binding %s", pod.Name, pod.Namespace, allBinding.Name)
-					matchedBindings = append(matchedBindings, allBinding)
-					nodeRefs[pod.Spec.NodeName] = true
-				}
-			}
 
-			for _, binding := range matchedBindings {
-				glog.V(5).Infof("Looking up id map: %v", binding.Spec.AzureIdentity)
-				if azureID, idPresent := idMap[binding.Spec.AzureIdentity]; idPresent {
+		var totalPods = 0
+		for _, allBinding := range *listBindings {
+			listPods, err := c.PodClient.GetPods(&allBinding.Spec.LabelSelector)
+			if err != nil {
+				continue
+			}
+			totalPods += len(listPods)
+
+			for _, pod := range listPods {
+				//Node is not yet allocated. In that case skip the pod
+				if pod.Spec.NodeName == "" {
+					glog.V(2).Infof("Pod %s/%s has no assigned node yet. it will be ignored", pod.Name, pod.Namespace)
+					continue
+				}
+
+				glog.V(5).Infof("Looking up id map: %v", allBinding.Spec.AzureIdentity)
+				if azureID, idPresent := idMap[allBinding.Spec.AzureIdentity]; idPresent {
 					// working in Namespaced mode or this specific identity is namespaced
 					if c.IsNamespaced || aadpodid.IsNamespacedIdentity(&azureID) {
 						// They have to match all
-						if !(azureID.Namespace == binding.Namespace && binding.Namespace == pod.Namespace) {
+						if !(azureID.Namespace == allBinding.Namespace && allBinding.Namespace == pod.Namespace) {
 							glog.V(5).Infof("identity %s/%s was matched via binding %s/%s to %s/%s but namespaced identity is enforced, so it will be ignored",
-								azureID.Namespace, azureID.Name, binding.Namespace, binding.Name, pod.Namespace, pod.Name)
+								azureID.Namespace, azureID.Name, allBinding.Namespace, allBinding.Name, pod.Namespace, pod.Name)
 							continue
 						}
 					}
-					glog.V(5).Infof("identity %s/%s assigned to %s/%s via %s/%s", azureID.Namespace, azureID.Name, pod.Namespace, pod.Name, binding.Namespace, binding.Namespace)
-					assignedID, err := c.makeAssignedIDs(&azureID, &binding, pod.Name, pod.Namespace, pod.Spec.NodeName)
+					glog.V(5).Infof("identity %s/%s assigned to %s/%s via %s/%s", azureID.Namespace, azureID.Name, pod.Namespace, pod.Name, allBinding.Namespace, allBinding.Namespace)
+					assignedID, err := c.makeAssignedIDs(&azureID, &allBinding, pod.Name, pod.Namespace, pod.Spec.NodeName)
 
 					if err != nil {
 						glog.Errorf("failed to create assignment for pod %s/%s with identity %s/%s with error %v", pod.Name, pod.Namespace, azureID.Namespace, azureID.Name, err.Error())
@@ -233,10 +195,11 @@ func (c *Client) Sync(exit <-chan struct{}) {
 					// In such a case, we will skip it from matching binding.
 					// This will ensure that the new assigned ids created will not have the
 					// one associated with this azure identity.
-					glog.V(5).Infof("%s identity not found when using %s binding", binding.Spec.AzureIdentity, binding.Name)
+					glog.V(5).Infof("%s identity not found when using %s binding", allBinding.Spec.AzureIdentity, allBinding.Name)
 				}
 			}
 		}
+
 		stats.Put(stats.CurrentState, time.Since(beginNewListTime))
 
 		// Extract add list and delete list based on existing assigned ids in the system (currentAssignedIDs).
@@ -253,20 +216,9 @@ func (c *Client) Sync(exit <-chan struct{}) {
 		if deleteList != nil && len(*deleteList) > 0 {
 			beginDeletion := time.Now()
 			workDone = true
-
-			vmssGroups, err := getVMSSGroups(c.NodeClient, nodeRefs)
-			if err != nil {
-				glog.Error(err)
-				continue
-			}
-
 			for _, delID := range *deleteList {
 				glog.V(5).Infof("Deletion of id: %s", delID.Name)
-				inUse, err := c.checkIfInUse(delID, newAssignedIDs, vmssGroups)
-				if err != nil {
-					glog.Error(err)
-					continue
-				}
+				inUse := c.checkIfInUse(delID, newAssignedIDs)
 				removedBinding := delID.Spec.AzureBindingRef
 				// The inUse here checks if there are pods which are using the MSI in the newAssignedIDs.
 				err = c.removeAssignedIDsWithDeps(&delID, inUse)
@@ -329,7 +281,7 @@ func (c *Client) Sync(exit <-chan struct{}) {
 			if listBindings != nil {
 				bindingsFound = len(*listBindings)
 			}
-			glog.Infof("Found %d pods, %d ids, %d bindings", len(listPods), idsFound, bindingsFound)
+			glog.Infof("Found %d pods, %d ids, %d bindings", totalPods, idsFound, bindingsFound)
 			stats.Put(stats.Total, time.Since(begin))
 			stats.PrintSync()
 		}
@@ -501,7 +453,7 @@ func (c *Client) convertIDListToMap(arr []aadpodid.AzureIdentity) (m map[string]
 	return m, nil
 }
 
-func (c *Client) checkIfInUse(checkAssignedID aadpodid.AzureAssignedIdentity, arr []aadpodid.AzureAssignedIdentity, vmssGroups *vmssGroupList) (bool, error) {
+func (c *Client) checkIfInUse(checkAssignedID aadpodid.AzureAssignedIdentity, arr []aadpodid.AzureAssignedIdentity) bool {
 	for _, assignedID := range arr {
 		checkID := checkAssignedID.Spec.AzureIdentityRef
 		id := assignedID.Spec.AzureIdentityRef
@@ -511,33 +463,10 @@ func (c *Client) checkIfInUse(checkAssignedID aadpodid.AzureAssignedIdentity, ar
 		if checkID.Spec.Type != aadpodid.UserAssignedMSI {
 			continue
 		}
-
-		if checkAssignedID.Spec.Pod == assignedID.Spec.Pod {
-			// No need to do the rest of the checks in this case, since it's the same assignment
-			// The same identity won't be assigned to a pod twice, so it's the same reference.
-			continue
-		}
-
-		if checkID.Spec.ClientID != id.Spec.ClientID {
-			continue
-		}
-
-		if checkAssignedID.Spec.NodeName == assignedID.Spec.NodeName {
-			return true, nil
-		}
-
-		vmss, err := getVMSSGroupFromPossiblyUnreferencedNode(c.NodeClient, vmssGroups, checkAssignedID.Spec.NodeName)
-		if err != nil {
-			return false, err
-		}
-
-		// check if this identity is used on another node in the same vmss
-		// This check is needed because vmss identities currently operate on all nodes
-		// in the vmss not just a single node.
-		if vmss != nil && vmss.hasNode(assignedID.Spec.NodeName) {
-			return true, nil
+		if checkID.Spec.ClientID == id.Spec.ClientID && checkAssignedID.Spec.NodeName == assignedID.Spec.NodeName &&
+			checkAssignedID.Spec.Pod != assignedID.Spec.Pod {
+			return true
 		}
 	}
-
-	return false, nil
+	return false
 }
