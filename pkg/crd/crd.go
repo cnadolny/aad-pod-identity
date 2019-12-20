@@ -8,10 +8,9 @@ import (
 
 	"github.com/golang/glog"
 
-	aadpodid "github.com/Azure/aad-pod-identity/pkg/apis/aadpodidentity"
+	aadpodid "github.com/Azure/aad-pod-identity/pkg/apis/aadpodidentity/internal"
 	aadpodv1 "github.com/Azure/aad-pod-identity/pkg/apis/aadpodidentity/v1"
 	conversion "github.com/Azure/aad-pod-identity/pkg/conversion"
-	inlog "github.com/Azure/aad-pod-identity/pkg/logger"
 	"github.com/Azure/aad-pod-identity/pkg/metrics"
 	"github.com/Azure/aad-pod-identity/pkg/stats"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -95,7 +94,7 @@ func NewCRDClientLite(config *rest.Config, nodeName string, scale bool) (crdClie
 }
 
 // NewCRDClient returns a new crd client and error if any
-func NewCRDClient(config *rest.Config, eventCh chan aadpodid.EventType, log inlog.Logger) (crdClient *Client, err error) {
+func NewCRDClient(config *rest.Config, eventCh chan aadpodid.EventType) (crdClient *Client, err error) {
 	restClient, err := newRestClient(config)
 	if err != nil {
 		klog.Error(err)
@@ -409,7 +408,7 @@ func (c *Client) ListAssignedIDs() (res *[]aadpodid.AzureAssignedIdentity, err e
 		o, ok := assignedID.(*aadpodv1.AzureAssignedIdentity)
 		if !ok {
 			err := fmt.Errorf("could not cast %T to %s", assignedID, aadpodv1.AzureAssignedIDResource)
-			c.log.Error(err)
+			klog.Error(err)
 			return nil, err
 		}
 		// Note: List items returned from cache have empty Kind and API version..
@@ -441,7 +440,7 @@ func (c *Client) ListAssignedIDsInMap() (map[string]aadpodid.AzureAssignedIdenti
 		o, ok := assignedID.(*aadpodv1.AzureAssignedIdentity)
 		if !ok {
 			err := fmt.Errorf("could not cast %T to %s", assignedID, aadpodv1.AzureAssignedIDResource)
-			c.log.Error(err)
+			klog.Error(err)
 			return nil, err
 		}
 		// Note: List items returned from cache have empty Kind and API version..
@@ -472,7 +471,7 @@ func (c *Client) ListIds() (res *[]aadpodid.AzureIdentity, err error) {
 		o, ok := id.(*aadpodv1.AzureIdentity)
 		if !ok {
 			err := fmt.Errorf("could not cast %T to %s", id, aadpodv1.AzureIDResource)
-			c.log.Error(err)
+			klog.Error(err)
 			return nil, err
 		}
 		// Note: List items returned from cache have empty Kind and API version..
@@ -502,7 +501,7 @@ func (c *Client) ListPodIdentityExceptions(ns string) (res *[]aadpodid.AzurePodI
 		o, ok := binding.(*aadpodv1.AzurePodIdentityException)
 		if !ok {
 			err := fmt.Errorf("could not cast %T to %s", binding, aadpodid.AzureIdentityExceptionResource)
-			c.log.Error(err)
+			klog.Error(err)
 			return nil, err
 		}
 		if o.Namespace == ns {

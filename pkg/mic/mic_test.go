@@ -8,7 +8,7 @@ import (
 	"testing"
 	"time"
 
-	aadpodid "github.com/Azure/aad-pod-identity/pkg/apis/aadpodidentity"
+	aadpodid "github.com/Azure/aad-pod-identity/pkg/apis/aadpodidentity/internal"
 	"github.com/Azure/aad-pod-identity/pkg/config"
 	"github.com/Azure/aad-pod-identity/pkg/metrics"
 

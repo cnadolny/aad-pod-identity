@@ -14,7 +14,7 @@ import (
 	"k8s.io/client-go/tools/cache"
 	"k8s.io/klog"
 
-	aadpodid "github.com/Azure/aad-pod-identity/pkg/apis/aadpodidentity/"
+	aadpodid "github.com/Azure/aad-pod-identity/pkg/apis/aadpodidentity/internal"
 )
 
 // Client represents new pod client

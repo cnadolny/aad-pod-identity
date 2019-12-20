@@ -3,7 +3,7 @@ package pod
 import (
 	"testing"
 
-	aadpodid "github.com/Azure/aad-pod-identity/pkg/apis/aadpodidentity"
+	aadpodid "github.com/Azure/aad-pod-identity/pkg/apis/aadpodidentity/internal"
 
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"

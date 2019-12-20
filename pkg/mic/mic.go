@@ -9,7 +9,7 @@ import (
 	"sync/atomic"
 	"time"
 
-	aadpodid "github.com/Azure/aad-pod-identity/pkg/apis/aadpodidentity"
+	aadpodid "github.com/Azure/aad-pod-identity/pkg/apis/aadpodidentity/internal"
 	aadpodv1 "github.com/Azure/aad-pod-identity/pkg/apis/aadpodidentity/v1"
 	"github.com/Azure/aad-pod-identity/pkg/cloudprovider"
 	"github.com/Azure/aad-pod-identity/pkg/crd"
@@ -108,7 +108,7 @@ func NewMICClient(cloudconfig string, config *rest.Config, isNamespaced bool, sy
 	klog.V(1).Infof("Cloud provider initialized")
 
 	eventCh := make(chan aadpodid.EventType, 100)
-	crdClient, err := crd.NewCRDClient(config, eventCh, Log{})
+	crdClient, err := crd.NewCRDClient(config, eventCh)
 	if err != nil {
 		return nil, err
 	}
