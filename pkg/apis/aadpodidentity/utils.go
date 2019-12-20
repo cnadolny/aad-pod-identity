@@ -1,4 +1,4 @@
-package internal
+package aadpodidentity
 
 func IsNamespacedIdentity(azureID *AzureIdentity) bool {
 	if val, ok := azureID.Annotations[BehaviorKey]; ok {

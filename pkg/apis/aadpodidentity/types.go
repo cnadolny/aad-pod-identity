@@ -1,4 +1,4 @@
-package internal
+package aadpodidentity
 
 import (
 	api "k8s.io/api/core/v1"

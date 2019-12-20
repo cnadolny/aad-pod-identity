@@ -1,7 +1,7 @@
 package conversion
 
 import (
-	aadpodid "github.com/Azure/aad-pod-identity/pkg/apis/aadpodidentity/internal"
+	aadpodid "github.com/Azure/aad-pod-identity/pkg/apis/aadpodidentity"
 	aadpodidv1 "github.com/Azure/aad-pod-identity/pkg/apis/aadpodidentity/v1"
 )
 

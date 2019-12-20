@@ -6,9 +6,7 @@ import (
 	"reflect"
 	"time"
 
-	"github.com/golang/glog"
-
-	aadpodid "github.com/Azure/aad-pod-identity/pkg/apis/aadpodidentity/internal"
+	aadpodid "github.com/Azure/aad-pod-identity/pkg/apis/aadpodidentity"
 	aadpodv1 "github.com/Azure/aad-pod-identity/pkg/apis/aadpodidentity/v1"
 	conversion "github.com/Azure/aad-pod-identity/pkg/conversion"
 	"github.com/Azure/aad-pod-identity/pkg/metrics"
@@ -179,15 +177,15 @@ func newBindingInformer(r *rest.RESTClient, eventCh chan aadpodid.EventType, lw 
 	azBindingInformer.AddEventHandler(
 		cache.ResourceEventHandlerFuncs{
 			AddFunc: func(obj interface{}) {
-				glog.V(6).Infof("Binding created")
+				klog.V(6).Infof("Binding created")
 				eventCh <- aadpodid.BindingCreated
 			},
 			DeleteFunc: func(obj interface{}) {
-				glog.V(6).Infof("Binding deleted")
+				klog.V(6).Infof("Binding deleted")
 				eventCh <- aadpodid.BindingDeleted
 			},
 			UpdateFunc: func(OldObj, newObj interface{}) {
-				glog.V(6).Infof("Binding updated")
+				klog.V(6).Infof("Binding updated")
 				eventCh <- aadpodid.BindingUpdated
 			},
 		},
@@ -210,15 +208,15 @@ func newIDInformer(r *rest.RESTClient, eventCh chan aadpodid.EventType, lw *cach
 	azIDInformer.AddEventHandler(
 		cache.ResourceEventHandlerFuncs{
 			AddFunc: func(obj interface{}) {
-				glog.V(6).Infof("Identity created")
+				klog.V(6).Infof("Identity created")
 				eventCh <- aadpodid.IdentityCreated
 			},
 			DeleteFunc: func(obj interface{}) {
-				glog.V(6).Infof("Identity deleted")
+				klog.V(6).Infof("Identity deleted")
 				eventCh <- aadpodid.IdentityDeleted
 			},
 			UpdateFunc: func(OldObj, newObj interface{}) {
-				glog.V(6).Infof("Identity updated")
+				klog.V(6).Infof("Identity updated")
 				eventCh <- aadpodid.IdentityUpdated
 			},
 		},
@@ -315,7 +313,7 @@ func (c *Client) syncCache(exit <-chan struct{}, initial bool, cacheSyncs ...cac
 
 // RemoveAssignedIdentity removes the assigned identity
 func (c *Client) RemoveAssignedIdentity(assignedIdentity *aadpodid.AzureAssignedIdentity) (err error) {
-	glog.V(6).Infof("Deletion of assigned id named: %s", assignedIdentity.Name)
+	klog.V(6).Infof("Deletion of assigned id named: %s", assignedIdentity.Name)
 	begin := time.Now()
 
 	defer func() {
@@ -337,7 +335,7 @@ func (c *Client) RemoveAssignedIdentity(assignedIdentity *aadpodid.AzureAssigned
 
 // CreateAssignedIdentity creates new assigned identity
 func (c *Client) CreateAssignedIdentity(assignedIdentity *aadpodid.AzureAssignedIdentity) (err error) {
-	glog.Infof("Got assigned id %s to assign", assignedIdentity.Name)
+	klog.Infof("Got assigned id %s to assign", assignedIdentity.Name)
 	begin := time.Now()
 
 	defer func() {
@@ -377,7 +375,7 @@ func (c *Client) ListBindings() (res *[]aadpodid.AzureIdentityBinding, err error
 		o, ok := binding.(*aadpodv1.AzureIdentityBinding)
 		if !ok {
 			err := fmt.Errorf("could not cast %T to %s", binding, aadpodv1.AzureIDBindingResource)
-			glog.Error(err)
+			klog.Error(err)
 			return nil, err
 		}
 		// Note: List items returned from cache have empty Kind and API version..
@@ -547,7 +545,7 @@ type patchStatusOps struct {
 
 // UpdateAzureAssignedIdentityStatus updates the status field in AzureAssignedIdentity to indicate current status
 func (c *Client) UpdateAzureAssignedIdentityStatus(assignedIdentity *aadpodid.AzureAssignedIdentity, status string) (err error) {
-	glog.Infof("Updating assigned identity %s/%s status to %s", assignedIdentity.Namespace, assignedIdentity.Name, status)
+	klog.Infof("Updating assigned identity %s/%s status to %s", assignedIdentity.Namespace, assignedIdentity.Name, status)
 
 	defer func() {
 		if err != nil {

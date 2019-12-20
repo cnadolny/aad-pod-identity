@@ -9,7 +9,7 @@ import (
 	"sync/atomic"
 	"time"
 
-	aadpodid "github.com/Azure/aad-pod-identity/pkg/apis/aadpodidentity/internal"
+	aadpodid "github.com/Azure/aad-pod-identity/pkg/apis/aadpodidentity"
 	aadpodv1 "github.com/Azure/aad-pod-identity/pkg/apis/aadpodidentity/v1"
 	"github.com/Azure/aad-pod-identity/pkg/cloudprovider"
 	"github.com/Azure/aad-pod-identity/pkg/crd"
